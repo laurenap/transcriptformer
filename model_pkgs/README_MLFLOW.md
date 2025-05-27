@@ -51,3 +51,32 @@ model_pkgs/mlflow_pkg/mlflow_models/
 ```
 $ python model_pkgs/mlflow_pkg/predict.py --model-path model_pkgs/mlflow_pkg/mlflow_models/transcriptformer_tf_sapiens --input-file ~/.cz-benchmarks/datasets/tsv2_bladder.h5ad --output-file model_pkgs/mlflow_pkg/tf_results/tsv2_bladder_embeddings.h5ad --gene-col-name ensembl_id --precision 16-mixed
 ```
+
+8. Explore results of inference:
+
+```
+$ python
+Python 3.11.12 (main, Apr  9 2025, 04:04:00) [Clang 20.1.0 ] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import anndata as ad
+>>> adata = ad.read_h5ad("model_pkgs/mlflow_pkg/tf_results/tsv2_bladder_embeddings.h5ad")
+>>> adata.shape
+(36715, 0)
+>>> adata.obsm.keys()
+KeysView(AxisArrays with keys: embeddings)
+>>> adata.obsm['embeddings'][:10]
+array([[-8.3201475e-02, -2.1799840e-01, -7.6243706e-02, ...,
+        -4.7113899e-02,  9.1581464e-02, -1.6075600e-02],
+       [-2.1389551e-01, -2.7368796e-01, -1.1780801e-01, ...,
+        -1.4133304e-01,  5.3645898e-02, -1.6838877e-01],
+       [-5.7556093e-01, -9.6078448e-02, -1.4714500e-01, ...,
+        -1.4922236e-01,  1.9487566e-01, -1.0581499e+00],
+       ...,
+       [-7.5616086e-01, -2.6275128e-01, -8.9282475e-02, ...,
+         2.7112734e-01,  2.5229374e-01, -6.3524050e-01],
+       [-1.1220228e-01, -2.6371574e-01, -3.2646282e-04, ...,
+        -2.9754400e-01,  2.5283948e-01, -4.2796448e-01],
+       [-2.5829804e-01, -1.9586168e-01, -2.1707835e-02, ...,
+        -6.4148486e-02,  2.1838287e-02, -1.0138144e-01]],
+      shape=(10, 2048), dtype=float32)
+```
