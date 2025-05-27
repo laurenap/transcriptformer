@@ -18,7 +18,7 @@ from pathlib import Path
 
 import mlflow.pyfunc
 from mlflow.models.signature import ModelSignature
-from mlflow.types.schema import ColSpec, Schema
+from mlflow.types.schema import ColSpec, ParamSchema, ParamSpec, Schema
 from model_code.tf_mlflow_model import TranscriptformerMLflowModel
 
 
@@ -43,10 +43,26 @@ def main():
     args = parse_args()
 
     model_save_path = args.output_dir / f"transcriptformer_{args.model_variant}"
-    signature = ModelSignature(
-        inputs=Schema([ColSpec("string")]),  # model_input: filepath string
-        outputs=Schema([ColSpec("string", "output_file")]),  # requires `return [{"output_file": ...}]`
+
+    # Define the input schema: a single string column for the input file path
+    input_schema = Schema([ColSpec("string")])
+
+    # Define the output schema: a single string column for the output file path
+    output_schema = Schema([ColSpec("string", "output_file")])
+
+    # Define the parameters schema with appropriate types
+    params_schema = ParamSchema(
+        [
+            ParamSpec(name="output_file", dtype="string", default="output.h5ad"),
+            ParamSpec(name="gene_col_name", dtype="string", default="ensembl_id"),
+            ParamSpec(name="precision", dtype="string", default="16-mixed"),
+            ParamSpec(name="pretrained_embedding", dtype="string", default=""),
+            ParamSpec(name="batch_size", dtype="integer", default=16),
+        ]
     )
+
+    # Combine the schemas into a model signature
+    signature = ModelSignature(inputs=input_schema, outputs=output_schema, params=params_schema)
 
     print(f"Packaging model variant '{args.model_variant}' with checkpoint '{args.checkpoint_path}'")
     print(f"Output path: {model_save_path}")
