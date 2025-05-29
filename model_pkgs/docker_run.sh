@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# NOTE: This is just a helper shell script that wraps
+# the underlying `docker run` command
+
 # Default values
 DOCKER_IMAGE=""
 MODEL_VARIANT=""

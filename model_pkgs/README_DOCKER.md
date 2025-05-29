@@ -23,6 +23,24 @@ $ ./docker_run.sh --docker-image transcriptformer:tf_sapiens \
   --gene-col-name ensembl_id \
   --precision 16-mixed
 ```
+
+`docker_run.sh` is just a helpful script that wraps the underlying `docker run`
+command. The real command that the shell script runs is:
+
+```
+docker run --rm -d --gpus all \
+  -v ~/.cz-benchmarks/datasets/:/data/input:ro \
+  -v ~/code/transcriptformer/model_pkgs/docker_pkg/tf_results/:/data/output \
+  transcriptformer:tf_sapiens \
+  --model-variant tf_sapiens \
+  --checkpoint-path model_data/tf_sapiens \
+  --input-file /data/input/tsv2_bladder.h5ad \
+  --output-file /data/output/tsv2_bladder_embeddings.h5ad \
+  --gene-col-name ensembl_id \
+  --precision 16-mixed \
+  --batch-size 32
+
+```
 6. Explore results of inference
 
 ```
