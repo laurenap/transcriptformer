@@ -20,7 +20,7 @@ $ transcriptformer download all --checkpoint-dir model_pkgs/mlflow_pkg/model_dat
 6. Run `package.py` to create `MLflow Model` artifact
 
 ```
-$ python model_pkgs/mlflow_pkg/package.py --model-variant tf_sapiens   --checkpoint-path model_pkgs/mlflow_pkg/model_data/tf_sapiens --output-dir model_pkgs/mlflow_pkg/mlflow_models --requirements model_pkgs/mlflow_pkg/requirements-mlflow-pkg.txt
+$ python model_pkgs/mlflow_pkg/package.py --model-variant tf_sapiens   --checkpoint-path model_pkgs/model_data/tf_sapiens --output-dir model_pkgs/mlflow_pkg/mlflow_models --requirements model_pkgs/mlflow_pkg/requirements-mlflow-pkg.txt
 ```
 
 ```

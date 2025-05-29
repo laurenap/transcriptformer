@@ -1,0 +1,52 @@
+FROM nvidia/cuda:12.6.1-cudnn-runtime-ubuntu22.04
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    UV_LINK_MODE=copy \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH" \
+    CC=/usr/bin/gcc
+
+
+# Install Python ≥3.11 and dependencies safely
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        git \
+        gcc \
+        g++ \
+        python3.11 \
+        python3.11-distutils \
+        python3.11-venv && \
+        python3.11-dev && \
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11 && \
+    ln -s /usr/bin/python3.11 /usr/bin/python && \
+    ln -s /usr/bin/pip3 /usr/bin/pip && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN pip install uv
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements
+COPY docker_pkg/requirements-docker-pkg.txt ./requirements.txt
+
+# Install dependencies in venv with buildkit cache
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv $VIRTUAL_ENV && \
+    uv pip install --no-cache-dir -r requirements.txt
+
+# Copy your app code
+COPY docker_pkg/inference.py .
+COPY model_data/tf_sapiens/ model_data/tf_sapiens/
+
+# Set entrypoint
+ENTRYPOINT ["python", "inference.py"]
