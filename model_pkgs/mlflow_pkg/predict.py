@@ -15,6 +15,7 @@ Example usage:
 import argparse
 
 import mlflow
+import mlflow.models
 
 
 def parse_args():
@@ -35,22 +36,35 @@ def parse_args():
 def main():
     args = parse_args()
 
-    params = {"output_file": args.output_file, "gene_col_name": args.gene_col_name, "precision": args.precision}
+    input_params = {
+        "data_file": args.input_file,
+        "output_file": args.output_file,
+        "gene_col_name": args.gene_col_name,
+        "precision": args.precision,
+    }
 
     if args.batch_size is not None:
-        params["batch_size"] = args.batch_size
+        input_params["batch_size"] = args.batch_size
 
     if args.pretrained_embedding:
-        params["pretrained_embedding"] = args.pretrained_embedding
+        input_params["pretrained_embedding"] = args.pretrained_embedding
+
+    # The input should be a list of dicts, each containing the input parameters for a single prediction
+    input_data = [input_params]
 
     # Load the model without specifying env_manager
     model = mlflow.pyfunc.load_model(model_uri=args.model_path)
 
     # Perform prediction with custom parameters
-    result = model.predict(args.input_file, params=params)
+    # result = model.predict(args.input_file, params=params)
+    results = model.predict(input_data)
+
+    # To perform prediction by specifying an env_manager, use the following:
+    # mlflow.models.predict(model_uri=args.model_path, input_data=input_data, env_manager="uv")
+    # results = [p["output_file"] for p in input_data]
 
     print("Inference completed.")
-    print("Output written to:", result["output_file"])
+    print(f"Output written to: {results}")
 
 
 if __name__ == "__main__":
