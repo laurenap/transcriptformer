@@ -1,70 +1,61 @@
 """
-Run inference using a packaged MLflow Transcriptformer model.
+Run inference with a packaged Transcriptformer MLflow model.
 
-Example usage:
-
-    python predict.py \
-        --model-path mlflow_models/transcriptformer_tf_sapiens \
-        --input-file /data/sample_input.h5ad \
-        --output-file /data/output_embeddings.h5ad \
-        --gene-col-name ensembl_id \
-        --precision 16-mixed \
-        --pretrained-embedding /data/optional_embedding.h5
+* Accepts CLI flags for a **single** input & output file.
+* Converts them into a one-row DataFrame so the model can still be batched.
+* Passes optional batch-wide params (`--precision`, etc.).
 """
 
+from __future__ import annotations
+
 import argparse
+from pathlib import Path
 
 import mlflow
-import mlflow.models
+import pandas as pd
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Run inference using an MLflow-wrapped Transcriptformer model")
-    parser.add_argument("--model-path", required=True, help="Path to saved MLflow model directory")
-    parser.add_argument("--input-file", required=True, help="Path to input .h5ad file")
-    parser.add_argument("--output-file", required=True, help="Path to output embeddings .h5ad file")
-
-    # Optional CLI arguments
-    parser.add_argument("--batch-size", type=int, help="Batch size to use")
-    parser.add_argument("--gene-col-name", default="ensembl_id", help="Gene column name")
-    parser.add_argument("--precision", default="16-mixed", help="Precision setting")
-    parser.add_argument("--pretrained-embedding", help="Optional path to pretrained embedding file")
-
-    return parser.parse_args()
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser()
+    p.add_argument("--model-path", required=True, help="Path to MLflow model")
+    p.add_argument("--input-file", required=True, help="Input .h5ad path")
+    p.add_argument("--output-file", required=True, help="Output .h5ad path")
+    # Optional knobs (must match ParamSchema names)
+    p.add_argument("--gene-col-name", default="ensembl_id")
+    p.add_argument("--precision", default="16-mixed")
+    p.add_argument("--pretrained-embedding", default="")
+    p.add_argument("--batch-size", type=int)
+    return p.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
-    input_params = {
-        "data_file": args.input_file,
-        "output_file": args.output_file,
+    # Build a single-row DataFrame.  This still satisfies the column schema
+    # and lets you concat more rows later for true batch calls.
+    df = pd.DataFrame(
+        [
+            {
+                "input_file": str(Path(args.input_file).expanduser()),
+                "output_file": str(Path(args.output_file).expanduser()),
+            }
+        ]
+    )
+
+    # Batch-wide params that MLflow will validate against ParamSchema.
+    params = {
         "gene_col_name": args.gene_col_name,
         "precision": args.precision,
+        "pretrained_embedding": args.pretrained_embedding,
     }
-
     if args.batch_size is not None:
-        input_params["batch_size"] = args.batch_size
+        params["batch_size"] = args.batch_size
 
-    if args.pretrained_embedding:
-        input_params["pretrained_embedding"] = args.pretrained_embedding
+    model = mlflow.pyfunc.load_model(args.model_path)
+    output_series = model.predict(df, params=params)  # validated call
 
-    # The input should be a list of dicts, each containing the input parameters for a single prediction
-    input_data = [input_params]
-
-    # Load the model without specifying env_manager
-    model = mlflow.pyfunc.load_model(model_uri=args.model_path)
-
-    # Perform prediction with custom parameters
-    # result = model.predict(args.input_file, params=params)
-    results = model.predict(input_data)
-
-    # To perform prediction by specifying an env_manager, use the following:
-    # mlflow.models.predict(model_uri=args.model_path, input_data=input_data, env_manager="uv")
-    # results = [p["output_file"] for p in input_data]
-
-    print("Inference completed.")
-    print(f"Output written to: {results}")
+    print("✓ Inference complete")
+    print("Output written to:", output_series.iloc[0])
 
 
 if __name__ == "__main__":

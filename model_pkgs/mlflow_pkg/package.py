@@ -1,71 +1,83 @@
 """
-Package a Transcriptformer model checkpoint into an MLflow PythonModel.
+Package a Transcriptformer checkpoint as an MLflow pyfunc model.
 
-This script saves an MLflow model using a specific model variant and checkpoint directory.
-It supports environment packaging via `uv` and accepts optional pip requirements.
+This script:
+1. Builds a ModelSignature automatically from *real sample data*
+   (infer_signature) to minimise drift  :contentReference[oaicite:2]{index=2}.
+2. Adds a ParamSchema for batch-wide runtime knobs.
+3. Saves the model with uv-compatible environment + code paths.
 
-Example usage:
-
+Example:
     python package.py \
         --model-variant tf_sapiens \
         --checkpoint-path /checkpoints/tf_sapiens \
-        --output-dir mlflow_models \
-        --requirements requirements-mlflow-pkg.txt
+        --output-dir mlflow_models
 """
+
+from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
 import mlflow.pyfunc
+import pandas as pd
+from mlflow.models import infer_signature
 from mlflow.models.signature import ModelSignature
-from mlflow.types.schema import ColSpec, ParamSchema, ParamSpec, Schema
+from mlflow.types.schema import ParamSchema, ParamSpec
 from model_code.tf_mlflow_model import TranscriptformerMLflowModel
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Package a transcriptformer model as an MLflow PythonModel")
-    parser.add_argument(
-        "--model-variant",
-        required=True,
-        type=str,
-        help="Name of the model variant (e.g., tf_sapiens, tf_exemplar, tf_metazoa)",
-    )
-    parser.add_argument("--checkpoint-path", required=True, type=Path, help="Path to the model checkpoint directory")
-    parser.add_argument("--output-dir", default="mlflow_models", type=Path, help="Directory to save the MLflow model")
-    parser.add_argument(
-        "--requirements", default="requirements-mlflow-pkg.txt", type=Path, help="Path to pip requirements file"
-    )
-
-    return parser.parse_args()
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser()
+    p.add_argument("--model-variant", required=True, help="tf_sapiens | tf_exemplar | tf_metazoa")
+    p.add_argument("--checkpoint-path", type=Path, required=True)
+    p.add_argument("--output-dir", type=Path, default="mlflow_models")
+    p.add_argument("--requirements", type=Path, default="requirements-mlflow-pkg.txt")
+    return p.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
-
     model_save_path = args.output_dir / f"transcriptformer_{args.model_variant}"
+    model_save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Define the input schema: a single string column for the input file path
-    input_schema = Schema([ColSpec("string")])
+    # ------------------------------------------------------------------ #
+    # 1. Build a tiny input/output example to drive infer_signature()    #
+    # ------------------------------------------------------------------ #
+    input_example = pd.DataFrame(
+        [
+            {
+                "input_file": "/tmp/sample_input.h5ad",
+                "output_file": "/tmp/sample_output.h5ad",
+            }
+        ]
+    )
+    output_example = pd.Series(["/tmp/sample_output.h5ad"])
 
-    # Define the output schema: a single string column for the output file path
-    output_schema = Schema([ColSpec("string", "output_file")])
+    # Infer columns + dtypes automatically to reduce maintenance.
+    base_sig = infer_signature(
+        model_input=input_example, model_output=output_example
+    )  # :contentReference[oaicite:3]{index=3}
 
-    # Define the parameters schema with appropriate types
+    # ------------------------------------------------------------------ #
+    # 2. Create a ParamSchema for batch-wide options                     #
+    # ------------------------------------------------------------------ #
     params_schema = ParamSchema(
         [
-            ParamSpec(name="output_file", dtype="string", default="output.h5ad"),
-            ParamSpec(name="gene_col_name", dtype="string", default="ensembl_id"),
-            ParamSpec(name="precision", dtype="string", default="16-mixed"),
-            ParamSpec(name="pretrained_embedding", dtype="string", default=""),
-            ParamSpec(name="batch_size", dtype="integer", default=16),
+            ParamSpec("gene_col_name", "string", default="ensembl_id"),
+            ParamSpec("precision", "string", default="16-mixed"),
+            ParamSpec("pretrained_embedding", "string", default=""),
+            ParamSpec("batch_size", "integer", default=16),
         ]
     )
 
-    # Combine the schemas into a model signature
-    signature = ModelSignature(inputs=input_schema, outputs=output_schema, params=params_schema)
+    signature = ModelSignature(
+        inputs=base_sig.inputs,
+        outputs=base_sig.outputs,
+        params=params_schema,
+    )
 
-    print(f"Packaging model variant '{args.model_variant}' with checkpoint '{args.checkpoint_path}'")
-    print(f"Output path: {model_save_path}")
+    print(f"Packaging variant={args.model_variant} → {model_save_path}")
 
     mlflow.pyfunc.save_model(
         path=str(model_save_path),
@@ -74,10 +86,10 @@ def main():
         pip_requirements=str(args.requirements),
         code_paths=[str((Path(__file__).parent / "model_code").resolve())],
         signature=signature,
+        input_example=input_example,  # stored as input_example.json  :contentReference[oaicite:4]{index=4}
         metadata={"tags": {"model_variant": args.model_variant}},
     )
-
-    print(f"Model saved successfully at: {model_save_path}")
+    print("✓ Model saved")
 
 
 if __name__ == "__main__":
