@@ -86,7 +86,7 @@ def main() -> None:
         pip_requirements=str(args.requirements),
         code_paths=[str((Path(__file__).parent / "model_code").resolve())],
         signature=signature,
-        input_example=input_example,  # stored as input_example.json  :contentReference[oaicite:4]{index=4}
+        input_example=input_example,  # stored as input_example.json
         metadata={"tags": {"model_variant": args.model_variant}},
     )
     print("✓ Model saved")

@@ -25,7 +25,7 @@ class TranscriptformerMLflowModel(mlflow.pyfunc.PythonModel):
 
     The class is loaded once per worker. Heavy artifacts (the checkpoint
     directory) are therefore fetched in `load_context()` rather than every
-    prediction call.  :contentReference[oaicite:0]{index=0}.
+    prediction call.
     """
 
     def __init__(self, model_variant: str) -> None:
@@ -57,7 +57,7 @@ class TranscriptformerMLflowModel(mlflow.pyfunc.PythonModel):
     #                             Prediction                                 #
     # --------------------------------------------------------------------- #
 
-    def predict(  # type: ignore[override]
+    def predict(
         self,
         context: mlflow.pyfunc.PythonModelContext,
         model_input: pd.DataFrame,
