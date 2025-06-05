@@ -29,8 +29,8 @@ from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Any
-
 import requests
+from anndata import AnnData
 import scanpy as sc
 
 # Suppress annoying warnings
