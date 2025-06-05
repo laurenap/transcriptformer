@@ -311,10 +311,10 @@ def run_download_data_cli(args):
 
     # Parse species list
     species_list = [s.strip() for s in args.species.split(",")] if args.species else []
-    
+
     # Print logo
     print(TF_LOGO)
-    
+
     # Run the download
     try:
         successful_downloads = download_data_main(
@@ -323,20 +323,20 @@ def run_download_data_cli(args):
             n_processes=args.processes,
             max_retries=args.max_retries,
             save_metadata=not args.no_metadata,
-            test_only=args.test_only
+            test_only=args.test_only,
         )
-        
+
         if args.test_only:
             if successful_downloads:
-                print(f"\n✅ API connectivity test passed!")
+                print("\n✅ API connectivity test passed!")
             else:
-                print(f"\n❌ API connectivity test failed.")
+                print("\n❌ API connectivity test failed.")
         else:
             if successful_downloads > 0:
                 print(f"\n✅ Successfully downloaded {successful_downloads} datasets to {args.output_dir}")
             else:
-                print(f"\n⚠️  No datasets were downloaded. Check the species names and try again.")
-                
+                print("\n⚠️  No datasets were downloaded. Check the species names and try again.")
+
     except Exception as e:
         print(f"\n❌ Download failed: {e}")
         if not args.test_only:
