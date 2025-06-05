@@ -268,7 +268,7 @@ def save_dataset_metadata(datasets: list[dict[str, Any]], output_path: Path) -> 
     logger.info(f"Saved metadata for {len(datasets)} datasets to {metadata_file}")
 
 
-def copy_adata_to_raw_counts(adata: sc.AnnData) -> sc.AnnData:
+def copy_adata_to_raw_counts(adata: AnnData) -> AnnData:
     """
     Create a new AnnData object with raw count data.
 
