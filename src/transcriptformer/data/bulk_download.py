@@ -29,9 +29,10 @@ from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Any
+
 import requests
-from anndata import AnnData
 import scanpy as sc
+from anndata import AnnData
 
 # Suppress annoying warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="anndata")
