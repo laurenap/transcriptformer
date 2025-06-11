@@ -31,8 +31,6 @@ from pathlib import Path
 from typing import Any
 
 import requests
-import scanpy as sc
-from anndata import AnnData
 
 # Suppress annoying warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="anndata")
@@ -267,28 +265,6 @@ def save_dataset_metadata(datasets: list[dict[str, Any]], output_path: Path) -> 
         json.dump(datasets, f, indent=2)
 
     logger.info(f"Saved metadata for {len(datasets)} datasets to {metadata_file}")
-
-
-def copy_adata_to_raw_counts(adata: AnnData) -> AnnData:
-    """
-    Create a new AnnData object with raw count data.
-
-    Args:
-        adata: Input AnnData object
-
-    Returns
-    -------
-        sc.AnnData: New AnnData object with raw counts in X
-    """
-    try:
-        # Try to use raw counts if available
-        if adata.raw is not None:
-            return sc.AnnData(X=adata.raw.X, obs=adata.obs.copy())
-        else:
-            return sc.AnnData(X=adata.X, obs=adata.obs.copy())
-    except Exception as e:
-        logger.warning(f"Error accessing raw counts: {e}")
-        return sc.AnnData(X=adata.X, obs=adata.obs.copy())
 
 
 def download_cellxgene_data(
