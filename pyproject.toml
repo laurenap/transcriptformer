@@ -41,7 +41,7 @@ optional-dependencies.build = [
 
 optional-dependencies.dev = [
   "pre-commit",
-  "pytest==8",
+  "pytest==8.4",
 ]
 
 urls."Bug Tracker" = "https://github.com/czi-ai/transcriptformer/issues"
