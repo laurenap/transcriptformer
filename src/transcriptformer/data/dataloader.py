@@ -9,6 +9,8 @@ import torch
 from scipy.sparse import csc_matrix, csr_matrix
 from torch import tensor
 from torch.utils.data import Dataset
+from collections import Counter
+
 
 from transcriptformer.data.dataclasses import BatchData
 from transcriptformer.tokenizer.tokenizer import (
@@ -262,12 +264,9 @@ class AnnDataset(Dataset):
             gene_names = np.array([id.split(".")[0] for id in gene_names])
 
             # Check for duplicates after removing version numbers
-            unique_genes = set(gene_names)
-            if len(unique_genes) != len(gene_names):
-                duplicates = set()
-                for gene in gene_names:
-                    if gene in unique_genes:
-                        duplicates.add(gene)
+            gene_counts = Counter(gene_names)
+            duplicates = {gene for gene, count in gene_counts.items() if count > 1}
+            if len(duplicates) > 0:
 
                 raise ValueError(
                     f"Found {len(duplicates)} duplicate genes after removing version numbers. "
