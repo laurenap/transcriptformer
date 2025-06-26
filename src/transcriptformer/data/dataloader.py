@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+from collections import Counter
 
 import anndata
 import numpy as np
@@ -9,8 +10,6 @@ import torch
 from scipy.sparse import csc_matrix, csr_matrix
 from torch import tensor
 from torch.utils.data import Dataset
-from collections import Counter
-
 
 from transcriptformer.data.dataclasses import BatchData
 from transcriptformer.tokenizer.tokenizer import (
@@ -267,7 +266,6 @@ class AnnDataset(Dataset):
             gene_counts = Counter(gene_names)
             duplicates = {gene for gene, count in gene_counts.items() if count > 1}
             if len(duplicates) > 0:
-
                 raise ValueError(
                     f"Found {len(duplicates)} duplicate genes after removing version numbers. "
                     f"Please remove duplicate genes from your data. "
