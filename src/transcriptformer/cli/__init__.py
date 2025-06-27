@@ -158,6 +158,12 @@ def setup_inference_parser(subparsers):
         choices=["cell", "cge"],
         help="Type of embeddings to extract: 'cell' for mean-pooled cell embeddings or 'cge' for contextual gene embeddings (default: cell)",
     )
+    parser.add_argument(
+        "--remove-duplicate-genes",
+        action="store_true",
+        default=False,
+        help="Remove duplicate genes if found instead of raising an error (default: False)",
+    )
 
     # Allow arbitrary config overrides
     parser.add_argument(
@@ -251,6 +257,7 @@ def run_inference_cli(args):
         f"model.inference_config.precision={args.precision}",
         f"model.model_type={args.model_type}",
         f"model.inference_config.emb_type={args.emb_type}",
+        f"model.data_config.remove_duplicate_genes={args.remove_duplicate_genes}",
     ]
 
     # Add pretrained embedding if specified
