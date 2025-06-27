@@ -247,6 +247,68 @@ class Transcriptformer(pl.LightningModule):
 
         return cge_dicts
 
+    def _create_gene_mean_cge_dict(self, gene_output, gene_token_indices, pad_mask, cell_types=None):
+        """Create gene-mean contextual gene embeddings by averaging over each (gene, cell_type) combination.
+
+        Args:
+            gene_output: Transformer output for genes (batch_size, seq_len, embed_dim)
+            gene_token_indices: Gene token indices for each position (batch_size, seq_len)
+            pad_mask: Padding mask (batch_size, seq_len) - True for valid positions
+            cell_types: List of cell types for each cell in the batch (batch_size,)
+
+        Returns
+        -------
+            List of dicts with keys 'gene_name', 'cell_type', 'embedding', 'count'
+        """
+        batch_size, seq_len, embed_dim = gene_output.shape
+
+        # Create reverse mapping from token index to gene name
+        idx_to_gene = {idx: gene for gene, idx in self.gene_vocab_dict.items()}
+
+        # Accumulate embeddings for each (gene, cell_type) combination
+        gene_cell_type_embeddings_sum = {}
+        gene_cell_type_counts = {}
+
+        for i in range(batch_size):
+            # Get cell type for this cell (default to 'unknown' if not provided)
+            cell_type = cell_types[i] if cell_types is not None else 'unknown'
+            
+            for j in range(seq_len):
+                if pad_mask[i, j]:  # Only include non-padded positions
+                    token_idx = gene_token_indices[i, j].item()
+                    gene_name = idx_to_gene.get(token_idx, "unknown")
+
+                    # Skip special tokens
+                    if gene_name not in ["[PAD]", "[START]", "[END]", "[MASK]", "[CELL]", "[RD]", "unknown"]:
+                        # Convert embedding to numpy
+                        embedding = gene_output[i, j].detach().cpu().numpy()
+                        
+                        # Create key for (gene, cell_type) combination
+                        key = (gene_name, cell_type)
+                        
+                        if key not in gene_cell_type_embeddings_sum:
+                            gene_cell_type_embeddings_sum[key] = embedding
+                            gene_cell_type_counts[key] = 1
+                        else:
+                            gene_cell_type_embeddings_sum[key] += embedding
+                            gene_cell_type_counts[key] += 1
+
+        # Compute mean embeddings and convert to flat list for storage
+        gene_mean_embeddings = []
+        
+        for (gene_name, cell_type), embedding_sum in gene_cell_type_embeddings_sum.items():
+            count = gene_cell_type_counts[(gene_name, cell_type)]
+            mean_embedding = embedding_sum / count
+            
+            gene_mean_embeddings.append({
+                'gene_name': gene_name,
+                'cell_type': cell_type, 
+                'embedding': mean_embedding,
+                'count': count
+            })
+
+        return gene_mean_embeddings
+
     def forward(
         self,
         batch: BatchData,
@@ -339,6 +401,10 @@ class Transcriptformer(pl.LightningModule):
             if emb_type == "cge":
                 # Return contextual gene embeddings as dictionaries
                 result["embeddings"] = self._create_cge_dict(gene_output, gene_token_indices, pad_mask)
+            elif emb_type == "gene-mean-cge":
+                # Return gene-mean contextual gene embeddings
+                gene_mean_embeddings = self._create_gene_mean_cge_dict(gene_output, gene_token_indices, pad_mask, batch.cell_types)
+                result["gene_mean_embeddings"] = gene_mean_embeddings
             else:
                 # Default: return mean-pooled cell embeddings
                 result["embeddings"] = mean_embeddings(gene_output, pad_mask).detach().cpu()
@@ -434,7 +500,18 @@ class Transcriptformer(pl.LightningModule):
 
         results = {}
         results["obs"] = batch.obs
-        results.update({key: transformer_output[key] for key in self.inference_config.output_keys})
+        
+        # Handle key mapping for different embedding types
+        emb_type = getattr(self.inference_config, "emb_type", "cell") if self.inference_config else "cell"
+        
+        for key in self.inference_config.output_keys:
+            if key == "embeddings" and emb_type == "gene-mean-cge":
+                # For gene-mean-cge, the actual key is "gene_mean_embeddings"
+                if "gene_mean_embeddings" in transformer_output:
+                    results[key] = transformer_output["gene_mean_embeddings"]
+            elif key in transformer_output:
+                results[key] = transformer_output[key]
+                
         return results
 
     def _resize_data(self, data, config_batch_size):
@@ -512,6 +589,10 @@ class ESM2CE(Transcriptformer):
             if emb_type == "cge":
                 # Return contextual gene embeddings as dictionaries
                 result["embeddings"] = self._create_cge_dict(gene_embeddings, gene_token_indices, pad_mask)
+            elif emb_type == "gene-mean-cge":
+                # Return gene-mean contextual gene embeddings
+                gene_mean_embeddings = self._create_gene_mean_cge_dict(gene_embeddings, gene_token_indices, pad_mask, batch.cell_types)
+                result["gene_mean_embeddings"] = gene_mean_embeddings
             else:
                 # Default: return mean-pooled cell embeddings
                 result["embeddings"] = mean_embeddings(gene_embeddings, pad_mask).detach().cpu()

@@ -346,6 +346,13 @@ class AnnDataset(Dataset):
         )
         batch["file_path"] = np.array([file_path] * X.shape[0])
 
+        # Extract cell types for gene-mean-cge embedding type
+        if 'cell_type' in obs.columns:
+            batch["cell_types"] = obs['cell_type'].tolist()
+        else:
+            # If no cell_type column, use 'unknown' for all cells
+            batch["cell_types"] = ['unknown'] * X.shape[0]
+
         if self.obs_keys is not None:
             obs_data = {}
             if "all" in self.obs_keys:
@@ -392,6 +399,11 @@ class AnnDataset(Dataset):
                 if self.obs_keys is not None
                 else None
             ),
+            cell_types=(
+                [cell_type for batch in all_data for cell_type in batch.cell_types]
+                if all_data[0].cell_types is not None
+                else None
+            ),
         )
 
         return concatenated_batch
@@ -427,6 +439,11 @@ class AnnDataset(Dataset):
             obs=(
                 {col: np.vstack([item.obs[col] for item in batch]) for col in batch[0].obs.keys()}
                 if batch[0].obs is not None
+                else None
+            ),
+            cell_types=(
+                [cell_type for item in batch for cell_type in item.cell_types]
+                if batch[0].cell_types is not None
                 else None
             ),
         )

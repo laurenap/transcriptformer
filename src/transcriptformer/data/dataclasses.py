@@ -177,7 +177,7 @@ class InferenceConfig:
         output_filename (str): Filename for the output embeddings (default: embeddings.h5ad)
         num_gpus_per_node (int): GPUs per node (default: 1)
         special_tokens (list): Special tokens to use
-        emb_type (str): Type of embeddings to extract - "cell" for mean-pooled cell embeddings or "cge" for contextual gene embeddings (default: "cell")
+        emb_type (str): Type of embeddings to extract - "cell" for mean-pooled cell embeddings, "cge" for contextual gene embeddings, or "gene-mean-cge" for gene-averaged contextual gene embeddings (default: "cell")
     """
 
     output_keys: list
@@ -195,8 +195,8 @@ class InferenceConfig:
     emb_type: str = "cell"
 
     def __post_init__(self):
-        if self.emb_type not in {"cell", "cge"}:
-            raise ValueError("emb_type must be either 'cell' or 'cge'")
+        if self.emb_type not in {"cell", "cge", "gene-mean-cge"}:
+            raise ValueError("emb_type must be either 'cell', 'cge', or 'gene-mean-cge'")
 
 
 @dataclass
@@ -225,3 +225,4 @@ class BatchData:
     aux_token_indices: torch.Tensor | None = None
     file_path: str | None = None
     obs: dict[str, np.ndarray] | None = None
+    cell_types: list[str] | None = None

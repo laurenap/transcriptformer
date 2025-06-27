@@ -155,8 +155,8 @@ def setup_inference_parser(subparsers):
     parser.add_argument(
         "--emb-type",
         default="cell",
-        choices=["cell", "cge"],
-        help="Type of embeddings to extract: 'cell' for mean-pooled cell embeddings or 'cge' for contextual gene embeddings (default: cell)",
+        choices=["cell", "cge", "gene-mean-cge"],
+        help="Type of embeddings to extract: 'cell' for mean-pooled cell embeddings, 'cge' for contextual gene embeddings, or 'gene-mean-cge' for gene-averaged contextual gene embeddings (default: cell)",
     )
 
     # Allow arbitrary config overrides

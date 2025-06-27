@@ -141,14 +141,27 @@ def run_inference(cfg, data_files: list[str] | list[anndata.AnnData]):
     logging.info("Combining predictions")
     concat_output = stack_dict(output)
 
+    # Automatically add required output keys for gene-mean-cge
+    output_keys = list(cfg.model.inference_config.output_keys)
+    if cfg.model.inference_config.emb_type == "gene-mean-cge":
+        # For gene-mean-cge, we need to look for "gene_mean_embeddings" in the model output
+        # but we want to process it when "embeddings" is in the output_keys
+        if "gene_mean_embeddings" not in output_keys and "embeddings" not in output_keys:
+            output_keys.append("embeddings")
+
     # Create pandas DataFrames from the obs and uns data in concat_output
     obs_df = pd.DataFrame(concat_output["obs"])
     uns = {"llh": pd.DataFrame({"llh": concat_output["llh"]})} if "llh" in concat_output else None
     obsm = {}
 
     # Add all other output keys to the obsm
-    for k in cfg.model.inference_config.output_keys:
-        if k in concat_output:
+    for k in output_keys:
+        # Handle key mapping for gene-mean-cge
+        actual_key = k
+        if k == "embeddings" and cfg.model.inference_config.emb_type == "gene-mean-cge":
+            actual_key = "gene_mean_embeddings"
+            
+        if actual_key in concat_output:
             if k == "embeddings" and cfg.model.inference_config.emb_type == "cge":
                 # Handle contextual gene embeddings - store in a flattened format for HDF5 compatibility
                 cge_list = concat_output[k]
@@ -183,9 +196,47 @@ def run_inference(cfg, data_files: list[str] | list[anndata.AnnData]):
                     uns["cge_embeddings"] = np.array([])
                     uns["cge_cell_indices"] = np.array([])
                     uns["cge_gene_names"] = np.array([])
+            elif k == "embeddings" and cfg.model.inference_config.emb_type == "gene-mean-cge":
+                # Handle gene-mean contextual gene embeddings
+                gene_mean_embeddings_list = concat_output[actual_key]
+
+                if gene_mean_embeddings_list:
+                    # Extract data from the list of dictionaries
+                    all_embeddings = []
+                    all_gene_names = []
+                    all_cell_types = []
+                    all_counts = []
+
+                    for emb_dict in gene_mean_embeddings_list:
+                        all_embeddings.append(emb_dict['embedding'])
+                        all_gene_names.append(emb_dict['gene_name'])
+                        all_cell_types.append(emb_dict['cell_type'])
+                        all_counts.append(emb_dict['count'])
+
+                    # Convert to numpy arrays
+                    embeddings_array = np.stack(all_embeddings)
+                    gene_names_array = np.array(all_gene_names)
+                    cell_types_array = np.array(all_cell_types)
+                    counts_array = np.array(all_counts)
+
+                    # Store in uns (unstructured data)
+                    if uns is None:
+                        uns = {}
+                    uns["gene_mean_embeddings"] = embeddings_array
+                    uns["gene_mean_gene_names"] = gene_names_array
+                    uns["gene_mean_cell_types"] = cell_types_array
+                    uns["gene_mean_counts"] = counts_array
+                else:
+                    # Handle empty case
+                    if uns is None:
+                        uns = {}
+                    uns["gene_mean_embeddings"] = np.array([])
+                    uns["gene_mean_gene_names"] = np.array([])
+                    uns["gene_mean_cell_types"] = np.array([])
+                    uns["gene_mean_counts"] = np.array([])
             else:
                 # Regular embeddings or other outputs
-                obsm[k] = concat_output[k].numpy() if hasattr(concat_output[k], "numpy") else concat_output[k]
+                obsm[k] = concat_output[actual_key].numpy() if hasattr(concat_output[actual_key], "numpy") else concat_output[actual_key]
 
     # Create a new AnnData object with the embeddings
     output_adata = anndata.AnnData(

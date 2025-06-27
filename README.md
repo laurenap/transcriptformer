@@ -191,6 +191,13 @@ transcriptformer inference \
   --data-file test/data/human_val.h5ad \
   --emb-type cge \
   --batch-size 8
+
+# Extract gene-mean contextual gene embeddings (averaged per gene across cell type)
+transcriptformer inference \
+  --checkpoint-path ./checkpoints/tf_sapiens \
+  --data-file test/data/human_val.h5ad \
+  --emb-type gene-mean-cge \
+  --batch-size 8
 ```
 
 You can also use the CLI it run inference on the ESM2-CE baseline model discussed in the paper:
@@ -237,7 +244,7 @@ transcriptformer download-data --help
 - `--use-raw {True,False,auto}`: Whether to use raw counts from `AnnData.raw.X` (True), `adata.X` (False), or auto-detect (auto/None) (default: None).
 - `--embedding-layer-index INT`: Index of the transformer layer to extract embeddings from (-1 for last layer, default: -1). Use with `transcriptformer` model type.
 - `--model-type {transcriptformer,esm2ce}`: Type of model to use (default: `transcriptformer`). Use `esm2ce` to extract raw ESM2-CE gene embeddings.
-- `--emb-type {cell,cge}`: Type of embeddings to extract (default: `cell`). Use `cell` for mean-pooled cell embeddings or `cge` for contextual gene embeddings.
+- `--emb-type {cell,cge,gene-mean-cge}`: Type of embeddings to extract (default: `cell`). Use `cell` for mean-pooled cell embeddings, `cge` for contextual gene embeddings, or `gene-mean-cge` for gene-averaged contextual gene embeddings.
 - `--config-override key.path=value`: Override any configuration value directly.
 
 ### Input Data Format and Preprocessing:
@@ -284,6 +291,14 @@ The inference results will be saved to the specified output directory (default: 
 - Original cell metadata is preserved in the `obs` dataframe
 - Log-likelihood scores (if available) are stored in `uns['llh']`
 
+**For gene-mean contextual gene embeddings (`--emb-type gene-mean-cge`):**
+- Gene-mean contextual gene embeddings are stored in `uns['gene_mean_embeddings']` as a 2D array (n_gene_cell_type_combinations, embedding_dim)
+- Gene names for each embedding are stored in `uns['gene_mean_gene_names']`
+- Cell types for each embedding are stored in `uns['gene_mean_cell_types']`
+- Count of cells contributing to each average are stored in `uns['gene_mean_counts']`
+- Original cell metadata is preserved in the `obs` dataframe
+- Log-likelihood scores (if available) are stored in `uns['llh']`
+
 #### Contextual Gene Embeddings (CGE)
 
 Contextual gene embeddings provide gene-specific representations that capture how each gene is contextualized within the cell sentence. Unlike cell embeddings which are mean-pooled across all genes, CGEs represent the individual embedding for each gene as computed by the transformer.
@@ -322,6 +337,51 @@ if np.any(gene_mask):
     gene_embedding = cge_embeddings[gene_mask][0]  # Returns numpy array
 else:
     gene_embedding = None  # Gene not found in this cell
+```
+
+**Gene-Mean Contextual Gene Embeddings (Gene-Mean-CGE)**
+
+Gene-mean contextual gene embeddings provide cell-type-specific gene representations by averaging the contextual embeddings for each gene across all cells of the same cell type. This gives you one embedding per (gene, cell_type) combination.
+
+Example usage:
+```bash
+# Extract gene-mean contextual gene embeddings
+transcriptformer inference \
+  --checkpoint-path ./checkpoints/tf_sapiens \
+  --data-file test/data/human_val.h5ad \
+  --emb-type gene-mean-cge \
+  --output-filename gene_mean_cge_embeddings.h5ad
+```
+
+To access gene-mean-CGE data in Python:
+```python
+import anndata as ad
+import numpy as np
+
+# Load the results
+adata = ad.read_h5ad("./inference_results/gene_mean_cge_embeddings.h5ad")
+
+# Access all gene-mean contextual gene embeddings
+gene_mean_embeddings = adata.uns['gene_mean_embeddings']  # Shape: (n_gene_cell_type_combinations, embedding_dim)
+gene_names = adata.uns['gene_mean_gene_names']           # Gene name for each embedding
+cell_types = adata.uns['gene_mean_cell_types']           # Cell type for each embedding  
+counts = adata.uns['gene_mean_counts']                   # Number of cells that contributed to each average
+
+# Get the embedding for a specific gene in a specific cell type
+gene_name = 'ENSG00000000003'
+cell_type = 'T cell'
+mask = (gene_names == gene_name) & (cell_types == cell_type)
+if np.any(mask):
+    gene_cell_type_embedding = gene_mean_embeddings[mask][0]  # Returns numpy array
+    num_cells_averaged = counts[mask][0]                      # Number of cells averaged
+else:
+    gene_cell_type_embedding = None  # Gene-cell_type combination not found
+
+# Get all embeddings for a specific gene across all cell types
+gene_mask = gene_names == gene_name
+gene_embeddings_all_cell_types = gene_mean_embeddings[gene_mask]
+gene_cell_types = cell_types[gene_mask]
+gene_counts = counts[gene_mask]
 ```
 
 For detailed configuration options, see the `src/transcriptformer/cli/conf/inference_config.yaml` file.
