@@ -458,7 +458,7 @@ class AnnDataset(Dataset):
                 else None
             ),
             cell_types=(
-                [cell_type for item in batch for cell_type in item.cell_types]
+                [item.cell_types for item in batch]
                 if batch[0].cell_types is not None
                 else None
             ),

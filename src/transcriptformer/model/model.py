@@ -263,7 +263,7 @@ class Transcriptformer(pl.LightningModule):
         batch_size, seq_len, embed_dim = gene_output.shape
 
         # Create reverse mapping from token index to gene name
-        idx_to_gene = {idx: gene for gene, idx in self.gene_vocab_dict.items()}
+        idx_to_gene = {idx: gene for gene, idx in self.gene_vocab.vocab_dict.items()}
 
         # Accumulate embeddings for each (gene, cell_type) combination
         gene_cell_type_embeddings_sum = {}
@@ -404,7 +404,7 @@ class Transcriptformer(pl.LightningModule):
             elif emb_type == "gene-mean-cge":
                 # Return gene-mean contextual gene embeddings
                 gene_mean_embeddings = self._create_gene_mean_cge_dict(gene_output, gene_token_indices, pad_mask, batch.cell_types)
-                result["gene_mean_embeddings"] = gene_mean_embeddings
+                result["embeddings"] = gene_mean_embeddings
             else:
                 # Default: return mean-pooled cell embeddings
                 result["embeddings"] = mean_embeddings(gene_output, pad_mask).detach().cpu()
