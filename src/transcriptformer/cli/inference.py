@@ -31,7 +31,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 def main(cfg: DictConfig):
     logging.debug(OmegaConf.to_yaml(cfg))
 
-    config_path = os.path.join(cfg.model.checkpoint_path, "config.json")
+    # Get checkpoint path from either location for backward compatibility
+    checkpoint_path = getattr(cfg.model, 'checkpoint_path', None) or cfg.model.inference_config.checkpoint_path
+    
+    config_path = os.path.join(checkpoint_path, "config.json")
     with open(config_path) as f:
         config_dict = json.load(f)
     mlflow_cfg = OmegaConf.create(config_dict)
@@ -40,9 +43,9 @@ def main(cfg: DictConfig):
     cfg = OmegaConf.merge(mlflow_cfg, cfg)
 
     # Set the checkpoint paths based on the unified checkpoint_path
-    cfg.model.inference_config.load_checkpoint = os.path.join(cfg.model.checkpoint_path, "model_weights.pt")
-    cfg.model.data_config.aux_vocab_path = os.path.join(cfg.model.checkpoint_path, "vocabs")
-    cfg.model.data_config.esm2_mappings_path = os.path.join(cfg.model.checkpoint_path, "vocabs")
+    cfg.model.inference_config.load_checkpoint = os.path.join(checkpoint_path, "model_weights.pt")
+    cfg.model.data_config.aux_vocab_path = os.path.join(checkpoint_path, "vocabs")
+    cfg.model.data_config.esm2_mappings_path = os.path.join(checkpoint_path, "vocabs")
 
     adata_output = run_inference(cfg, data_files=cfg.model.inference_config.data_files)
 

@@ -248,14 +248,14 @@ def run_inference_cli(args):
     # Create a hydra-compatible config dictionary for direct use with inference.py
     cmd = [
         "--config-name=inference_config.yaml",
-        f"model.checkpoint_path={args.checkpoint_path}",
+        f"model.inference_config.checkpoint_path={args.checkpoint_path}",
         f"model.inference_config.data_files.0={args.data_file}",
         f"model.inference_config.batch_size={args.batch_size}",
         f"model.data_config.gene_col_name={args.gene_col_name}",
         f"model.inference_config.output_path={args.output_path}",
         f"model.inference_config.output_filename={args.output_filename}",
         f"model.inference_config.precision={args.precision}",
-        f"model.model_type={args.model_type}",
+        f"model.inference_config.model_type={args.model_type}",
         f"model.inference_config.emb_type={args.emb_type}",
         f"model.data_config.remove_duplicate_genes={args.remove_duplicate_genes}",
     ]
