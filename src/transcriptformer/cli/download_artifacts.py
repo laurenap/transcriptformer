@@ -108,9 +108,13 @@ def download_and_extract(model_name: str, checkpoint_dir: str = "./checkpoints")
                 progress_tracker = ProgressTracker(prefix=f"Downloading {model_name}")
 
                 def report_hook(count, block_size, total_size):
-                    """Optimized callback function to report download progress."""
-                    if total_size > 0:
-                        progress_tracker.update(count * block_size, total_size)
+                    """Callback function to report download progress."""
+                    if total_size > 0 and (count % 100 == 0 or count * block_size >= total_size):
+                        print_progress(
+                            count * block_size,
+                            total_size,
+                            prefix=f"Downloading {model_name}",
+                        )
 
                 urllib.request.urlretrieve(s3_path, filename=tmp_file.name, reporthook=report_hook)
                 print()  # New line after download completes

@@ -5,7 +5,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "transcriptformer"
-version = "0.4.1"
+version = "0.4.2"
 description = "A transformer model for gene expression data"
 readme = "README.md"
 license = { text = "MIT" }
@@ -19,9 +19,9 @@ dependencies = [
   "anndata==0.11.4",
   "boto3==1.38.27",
   "cellxgene-census==1.17",
-  "h5py==3.10",
+  "h5py==3.14",
   "hydra-core==1.3.2",
-  "numpy==1.26.4",
+  "numpy==2.2.6",
   "pandas==2.2.2",
   "psutil==5.9",
   "pynvml==12",
