@@ -9,6 +9,7 @@ import anndata
 import logging
 from transcriptformer.data.dataclasses import InferenceConfig, DataConfig
 from transcriptformer.model.inference import run_inference
+from transcriptformer.config.build_config import merge_checkpoint_with_cfg
 
 
 class TranscriptFormerClient:
@@ -52,10 +53,12 @@ class TranscriptFormerClient:
         
         # Create Hydra-compatible config structure
         cfg = self._create_hydra_config(
-            inference_config, 
-            data_config, 
+            inference_config,
+            data_config,
             checkpoint_path,
-            unknown_kwargs
+            unknown_kwargs,
+            explicit_inference_keys=list(inference_kwargs.keys()),
+            explicit_data_keys=list(data_kwargs.keys()),
         )
 
         result = run_inference(cfg, data_files=[data_file])
@@ -241,6 +244,8 @@ class TranscriptFormerClient:
                 'obs_keys': ['all'],
                 'data_files': None,
                 'load_checkpoint': None,
+                # Default to None so embedding surgery is disabled unless explicitly requested
+                'pretrained_embedding': None,
             }
         elif config_class == DataConfig:
             return {
@@ -262,50 +267,65 @@ class TranscriptFormerClient:
             }
         return {}
     
-    def _create_hydra_config(self, inference_config, data_config, checkpoint_path, unknown_kwargs):
-        """Create Hydra-compatible configuration structure."""
-        # Load model config from checkpoint
-        config_path = os.path.join(checkpoint_path, "config.json")
-        with open(config_path) as f:
-            model_config = json.load(f)
-        
-        # Start with the saved model config as base
-        cfg_dict = model_config.copy()
-        
-        # Override with client-provided configs
-        # Merge data_config, giving preference to saved model config for essential fields
-        saved_data_config = cfg_dict['model'].get('data_config', {})
-        client_data_config = self._dataclass_to_dict(data_config)
-        
-        # Keep essential fields from saved config, override others with client config
-        essential_fields = ['esm2_mappings', 'special_tokens', 'esm2_mappings_path']
-        merged_data_config = client_data_config.copy()
-        for field in essential_fields:
-            if field in saved_data_config:
-                merged_data_config[field] = saved_data_config[field]
-        
-        # Update the model config structure
-        cfg_dict['model']['checkpoint_path'] = checkpoint_path
-        cfg_dict['model']['model_type'] = inference_config.model_type
-        cfg_dict['model']['inference_config'] = self._dataclass_to_dict(inference_config)
-        cfg_dict['model']['data_config'] = merged_data_config
-        
-        # Set checkpoint paths automatically
-        cfg_dict['model']['inference_config']['load_checkpoint'] = os.path.join(
-            checkpoint_path, "model_weights.pt"
+    def _create_hydra_config(
+        self,
+        inference_config,
+        data_config,
+        checkpoint_path,
+        unknown_kwargs,
+        explicit_inference_keys: list[str] | None = None,
+        explicit_data_keys: list[str] | None = None,
+    ):
+        """Create Hydra-compatible configuration structure using the same merge path as the CLI.
+
+        Order: YAML defaults -> dataclass overrides -> merge with checkpoint (checkpoint base, others override).
+        """
+        # Load the CLI YAML defaults to keep parity with the CLI
+        yaml_path = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "..", "cli", "conf", "inference_config.yaml")
         )
-        cfg_dict['model']['data_config']['aux_vocab_path'] = os.path.join(
-            checkpoint_path, "vocabs"
-        )
-        cfg_dict['model']['data_config']['esm2_mappings_path'] = os.path.join(
-            checkpoint_path, "vocabs"
-        )
-        
-        # Add any unknown kwargs as overrides
+        yaml_cfg = OmegaConf.load(yaml_path)
+
+        # Prepare overrides from dataclasses
+        override_inference_cfg = self._dataclass_to_dict(inference_config)
+        override_data_cfg = self._dataclass_to_dict(data_config)
+        # Do not override checkpoint values with empty optional fields
+        for k in ["esm2_mappings", "special_tokens", "esm2_mappings_path"]:
+            if k in override_data_cfg and (override_data_cfg[k] is None or override_data_cfg[k] == []):
+                del override_data_cfg[k]
+
+        overrides = {
+            "model": {
+                "model_type": inference_config.model_type,
+                "inference_config": override_inference_cfg,
+                "data_config": override_data_cfg,
+            }
+        }
+
+        # Apply any unknown kwargs under model namespace
         for key, value in unknown_kwargs.items():
-            cfg_dict['model'][key] = value
-            
-        return OmegaConf.create(cfg_dict)
+            overrides["model"][key] = value
+
+        # Merge YAML with overrides first
+        base = OmegaConf.merge(yaml_cfg, overrides)
+
+        # Merge with checkpoint exactly like the CLI does
+        cfg = merge_checkpoint_with_cfg(checkpoint_path, base)
+
+        # If checkpoint lacks esm2_mappings, try to synthesize from known model names
+        if cfg.model.data_config.esm2_mappings is None:
+            # Best-effort to set defaults by model family
+            model_dir_name = os.path.basename(os.path.normpath(checkpoint_path))
+            if model_dir_name == "tf_sapiens":
+                cfg.model.data_config.esm2_mappings = ["homo_sapiens_gene.h5"]
+            elif model_dir_name == "tf_exemplar":
+                # exemplar trained across 5 organisms; let checkpoint provide; leave as None
+                pass
+            elif model_dir_name == "tf_metazoa":
+                # metazoa; leave as None (expect checkpoint to carry list)
+                pass
+
+        return cfg
     
     def _dataclass_to_dict(self, obj):
         """Convert dataclass to dictionary."""

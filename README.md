@@ -194,7 +194,7 @@ transcriptformer inference \
 ```
 
 You can also use the CLI it run inference on the ESM2-CE baseline model discussed in the paper:
-
+```
 transcriptformer inference \
   --checkpoint-path ./checkpoints/tf_sapiens \
   --data-file test/data/human_val.h5ad \
