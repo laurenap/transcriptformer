@@ -3,7 +3,7 @@
 <p align="center">
   <img src="assets/model_overview.png" width="600" alt="TranscriptFormer Overview">
   <br>
-  <em>Overview of TranscriptFormer pretraining data, model, outputs and downstream tasks.
+  <em>Overview of TranscriptFormer pretraining data (A), model (B), outputs (C) and downstream tasks (D).
 </em>
 </p>
 
@@ -80,6 +80,10 @@ See the `pyproject.toml` file for the complete list of dependencies.
 ### Hardware Requirements
 - GPU (A100 40GB recommended) for efficient inference and embedding extraction.
 - Can also use a GPU with a lower amount of VRAM (16GB) by setting the inference batch size to 1-4.
+- **Multi-GPU support**: For faster inference on large datasets, use multiple GPUs with the `--num-gpus` parameter.
+  - Recommended for datasets with >100k cells
+  - Scales batch processing across available GPUs using Distributed Data Parallel (DDP)
+  - Best performance with matched GPU types and sufficient inter-GPU bandwidth
 
 
 ## Using the TranscriptFormer CLI
@@ -111,6 +115,49 @@ The command will download and extract the following files to the `./checkpoints`
 - `./checkpoints/tf_exemplar/`: Exemplar model weights
 - `./checkpoints/tf_metazoa/`: Metazoa model weights
 - `./checkpoints/all_embeddings/`: Embedding files for out-of-distribution species
+
+#### Available Protein Embeddings
+
+The following protein embeddings are available for download with `transcriptformer download all-embeddings`:
+
+| Scientific Name | Common Name | TF-Metazoa | TF-Exemplar | TF-Sapiens | Notes |
+|-----------------|-------------|------------|-------------|------------|-------|
+| *Homo sapiens* | Human | ✓ | ✓ | ✓ | Primary training species |
+| *Mus musculus* | Mouse | ✓ | ✓ | - | Model organism |
+| *Danio rerio* | Zebrafish | ✓ | ✓ | - | Model organism |
+| *Drosophila melanogaster* | Fruit fly | ✓ | ✓ | - | Model organism |
+| *Caenorhabditis elegans* | C. elegans | ✓ | ✓ | - | Model organism |
+| *Oryctolagus cuniculus* | Rabbit | ✓ | - | - | Vertebrate |
+| *Gallus gallus* | Chicken | ✓ | - | - | Vertebrate |
+| *Xenopus laevis* | African clawed frog | ✓ | - | - | Vertebrate |
+| *Lytechinus variegatus* | Sea urchin | ✓ | - | - | Invertebrate |
+| *Spongilla lacustris* | Freshwater sponge | ✓ | - | - | Invertebrate |
+| *Saccharomyces cerevisiae* | Yeast | ✓ | - | - | Fungus |
+| *Plasmodium falciparum* | Malaria parasite | ✓ | - | - | Protist |
+| *Rattus norvegicus* | Rat | - | - | - | Out-of-distribution |
+| *Sus scrofa* | Pig | - | - | - | Out-of-distribution |
+| *Pan troglodytes* | Chimpanzee | - | - | - | Out-of-distribution |
+| *Gorilla gorilla* | Gorilla | - | - | - | Out-of-distribution |
+| *Macaca mulatta* | Rhesus macaque | - | - | - | Out-of-distribution |
+| *Callithrix jacchus* | Marmoset | - | - | - | Out-of-distribution |
+| *Xenopus tropicalis* | Western clawed frog | - | - | - | Out-of-distribution |
+| *Ornithorhynchus anatinus* | Platypus | - | - | - | Out-of-distribution |
+| *Monodelphis domestica* | Opossum | - | - | - | Out-of-distribution |
+| *Heterocephalus glaber* | Naked mole-rat | - | - | - | Out-of-distribution |
+| *Petromyzon marinus* | Sea lamprey | - | - | - | Out-of-distribution |
+| *Stylophora pistillata* | Coral | - | - | - | Out-of-distribution |
+
+**Legend:**
+- ✓ = Species included in model training data
+- \- = Species not included in model training (out-of-distribution)
+
+### Generating Protein Embeddings for New Species
+
+The pre-generated embeddings cover the most commonly used species. If you need to work with a species not included in the downloaded embeddings, you can generate protein embeddings using the ESM-2 models.
+
+**Note**: This is only necessary for new species that don't have pre-generated embeddings available for download.
+
+For detailed instructions on generating protein embeddings for additional species, see the [protein_embeddings/README.md](protein_embeddings/README.md) documentation.
 
 ### Downloading Training Datasets
 
@@ -191,6 +238,13 @@ transcriptformer inference \
   --data-file test/data/human_val.h5ad \
   --emb-type cge \
   --batch-size 8
+
+# Multi-GPU inference using 4 GPUs (-1 will use all available on the system)
+transcriptformer inference \
+  --checkpoint-path ./checkpoints/tf_sapiens \
+  --data-file test/data/human_val.h5ad \
+  --num-gpus 4 \
+  --batch-size 32
 ```
 
 You can also use the CLI it run inference on the ESM2-CE baseline model discussed in the paper:
@@ -238,6 +292,9 @@ transcriptformer download-data --help
 - `--embedding-layer-index INT`: Index of the transformer layer to extract embeddings from (-1 for last layer, default: -1). Use with `transcriptformer` model type.
 - `--model-type {transcriptformer,esm2ce}`: Type of model to use (default: `transcriptformer`). Use `esm2ce` to extract raw ESM2-CE gene embeddings.
 - `--emb-type {cell,cge}`: Type of embeddings to extract (default: `cell`). Use `cell` for mean-pooled cell embeddings or `cge` for contextual gene embeddings.
+- `--num-gpus INT`: Number of GPUs to use for inference (default: 1). Use -1 for all available GPUs, or specify a specific number.
+- `--oom-dataloader`: Use the OOM-safe map-style DataLoader (uses backed reads and per-item densification; DistributedSampler-friendly).
+- `--n-data-workers INT`: Number of DataLoader workers per process (default: 0). Order is preserved with the map-style dataset and DistributedSampler.
 - `--config-override key.path=value`: Override any configuration value directly.
 
 ### Input Data Format and Preprocessing:
@@ -257,6 +314,18 @@ Input data files should be in H5AD format (AnnData objects) with the following r
   - `None` (default): Try `adata.raw.X` first, then fall back to `adata.X`
   - `True`: Use only `adata.raw.X`
   - `False`: Use only `adata.X`
+
+ - **OOM-safe Data Loading**:
+   - To reduce peak memory usage on large datasets, enable the OOM-safe dataloader:
+     ```bash
+     transcriptformer inference \
+       --checkpoint-path ./checkpoints/tf_sapiens \
+       --data-file ./data/huge.h5ad \
+       --oom-dataloader \
+       --n-data-workers 4 \
+       --num-gpus 8
+     ```
+   - This uses a map-style dataset with backed reads and per-row densification. It is compatible with `DistributedSampler`, so multiple workers are safe and ordering is preserved.
 
 - **Count Processing**:
   - Count values are clipped at 30 by default (as was done in training)

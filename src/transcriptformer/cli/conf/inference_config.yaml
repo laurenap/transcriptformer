@@ -23,7 +23,9 @@ model:
     load_checkpoint: null # Path to model weights file (automatically set by inference.py)
     pretrained_embedding: null # Path to pretrained embeddings for out-of-distribution species
     precision: 16-mixed # Numerical precision for inference (16-mixed, 32, etc.)
-    emb_type: cell # Type of embeddings to extract: "cell" for mean-pooled cell embeddings, "cge" for contextual gene embeddings
+    emb_type: cell # Type of embeddings to extract: "cell" for mean-pooled cell embeddings or "cge" for contextual gene embeddings
+    num_gpus: 1 # Number of GPUs to use for inference (1 = single GPU, -1 = all available GPUs, >1 = specific number)
+    use_oom_dataloader: false # Use OOM-safe map-style DataLoader with DistributedSampler
     model_type: "transcriptformer" # Type of model to use for inference
 
   data_config:
@@ -38,3 +40,4 @@ model:
     min_expressed_genes: 0 # Minimum number of expressed genes required per cell
     use_raw: "auto" # Whether to use .raw.X (True), .X (False), or auto-detect (auto/null)
     remove_duplicate_genes: false # Whether to remove duplicate genes instead of raising an error
+    n_data_workers: 0 # Leave as 0 to ensure deterministic behavior
