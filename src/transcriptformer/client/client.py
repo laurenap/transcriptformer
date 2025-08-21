@@ -61,6 +61,16 @@ class TranscriptFormerClient:
             explicit_data_keys=list(data_kwargs.keys()),
         )
 
+        # Disallow multi-GPU inference in the Python client for now
+        num_gpus = getattr(cfg.model.inference_config, "num_gpus", 1)
+        if num_gpus != 1:
+            # Restore original logging level before raising
+            logging.getLogger().setLevel(original_level)
+            raise ValueError(
+                f"TranscriptFormerClient does not support multi-GPU inference yet (num_gpus={num_gpus}). "
+                "Please set num_gpus=1 or use the CLI."
+            )
+
         result = run_inference(cfg, data_files=[data_file])
 
         # Restore original logging level
