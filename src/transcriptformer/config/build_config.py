@@ -1,5 +1,6 @@
 import json
 import os
+
 from omegaconf import OmegaConf
 
 
@@ -27,5 +28,3 @@ def merge_checkpoint_with_cfg(checkpoint_path: str, base_cfg):
     cfg.model.inference_config.checkpoint_path = checkpoint_path
 
     return cfg
-
-

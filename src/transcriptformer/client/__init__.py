@@ -2,4 +2,4 @@
 
 from .client import TranscriptFormerClient
 
-__all__ = ["TranscriptFormerClient"] 
+__all__ = ["TranscriptFormerClient"]

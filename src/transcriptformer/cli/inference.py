@@ -16,8 +16,8 @@ import os
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-from transcriptformer.model.inference import run_inference
 from transcriptformer.config.build_config import merge_checkpoint_with_cfg
+from transcriptformer.model.inference import run_inference
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -32,8 +32,8 @@ def main(cfg: DictConfig):
     logging.debug(OmegaConf.to_yaml(cfg))
 
     # Get checkpoint path from either location for backward compatibility
-    checkpoint_path = getattr(cfg.model, 'checkpoint_path', None) or cfg.model.inference_config.checkpoint_path
-    
+    checkpoint_path = getattr(cfg.model, "checkpoint_path", None) or cfg.model.inference_config.checkpoint_path
+
     cfg = merge_checkpoint_with_cfg(checkpoint_path, cfg)
 
     adata_output = run_inference(cfg, data_files=cfg.model.inference_config.data_files)

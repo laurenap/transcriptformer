@@ -64,25 +64,25 @@ def print_progress(current, total, prefix="", suffix="", length=50):
 
 class ProgressTracker:
     """Rate-limited progress tracker to avoid excessive updates."""
-    
+
     def __init__(self, prefix="", min_update_interval=0.1):
         self.prefix = prefix
         self.min_update_interval = min_update_interval
         self.last_update_time = 0
         self.last_percent = -1
-    
+
     def update(self, current, total):
         """Update progress, but only if enough time has passed or significant progress made."""
         now = time.time()
         current_percent = int(100 * current / total) if total > 0 else 0
-        
+
         # Update if: enough time passed OR significant progress made OR completed
         should_update = (
-            now - self.last_update_time >= self.min_update_interval or
-            current_percent - self.last_percent >= 2 or  # Update every 2%
-            current >= total  # Always update when complete
+            now - self.last_update_time >= self.min_update_interval
+            or current_percent - self.last_percent >= 2  # Update every 2%
+            or current >= total  # Always update when complete
         )
-        
+
         if should_update:
             print_progress(current, total, prefix=self.prefix)
             self.last_update_time = now
@@ -104,8 +104,6 @@ def download_and_extract(model_name: str, checkpoint_dir: str = "./checkpoints")
         with tempfile.NamedTemporaryFile(suffix=".tar.gz") as tmp_file:
             # Download the file using urllib with optimized progress bar
             try:
-                # Create rate-limited progress tracker
-                progress_tracker = ProgressTracker(prefix=f"Downloading {model_name}")
 
                 def report_hook(count, block_size, total_size):
                     """Callback function to report download progress."""
@@ -137,13 +135,13 @@ def download_and_extract(model_name: str, checkpoint_dir: str = "./checkpoints")
                 with tarfile.open(fileobj=tmp_file, mode="r:gz") as tar:
                     members = tar.getmembers()
                     total_files = len(members)
-                    
+
                     # Create progress tracker for extraction
                     extract_tracker = ProgressTracker(
                         prefix=f"Extracting {model_name}",
-                        min_update_interval=0.05  # Faster updates for file extraction
+                        min_update_interval=0.05,  # Faster updates for file extraction
                     )
-                    
+
                     for i, member in enumerate(members, 1):
                         tar.extract(member, path=str(output_dir.parent))
                         extract_tracker.update(i, total_files)
@@ -193,4 +191,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()
