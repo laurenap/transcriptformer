@@ -2,7 +2,7 @@
 
 import logging
 import os
-from dataclasses import fields, is_dataclass
+from dataclasses import fields
 from typing import Any
 
 import anndata
@@ -17,13 +17,19 @@ class TranscriptFormerClient:
     """Python client for TranscriptFormer inference and downloads."""
 
     def inference(
-        self, data_file: str | anndata.AnnData, checkpoint_path: str, log_level: int = logging.ERROR, **kwargs
+        self,
+        data_file: str | anndata.AnnData,
+        checkpoint_path: str,
+        log_level: int = logging.ERROR,
+        inference_config_path: str | None = None,
+        **kwargs,
     ) -> Any:
         """Run inference with TranscriptFormer model.
 
         Args:
             data_file: Path to input AnnData file
             checkpoint_path: Path to model checkpoint directory
+            inference_config_path: Path to inference YAML to merge with checkpoint (defaults to CLI YAML)
             **kwargs: Additional parameters that map to InferenceConfig and DataConfig
 
         Returns
@@ -34,32 +40,33 @@ class TranscriptFormerClient:
         original_level = logging.getLogger().level
         logging.getLogger().setLevel(log_level)
 
-        # Split kwargs into appropriate dataclass parameters
+        # Split kwargs into appropriate dataclass parameters and validate
         inference_kwargs, data_kwargs, unknown_kwargs = self._split_kwargs(kwargs)
+        if unknown_kwargs:
+            invalid_keys = ", ".join(sorted(unknown_kwargs.keys()))
+            # Restore original logging level before raising
+            logging.getLogger().setLevel(original_level)
+            raise ValueError(f"Unknown kwargs not found in InferenceConfig/DataConfig: {invalid_keys}")
 
-        # Add required parameters
-        inference_kwargs.update(
-            {
-                "data_files": None,
-                "checkpoint_path": checkpoint_path,
-                "output_keys": ["embeddings"],  # Default output
-                "obs_keys": ["all"],  # Default to return all obs
-            }
-        )
+        # Resolve default inference config path (CLI YAML) if not provided
+        if inference_config_path is None:
+            inference_config_path = os.path.normpath(
+                os.path.join(os.path.dirname(__file__), "..", "cli", "conf", "inference_config.yaml")
+            )
 
-        # Create configs with defaults
-        inference_config = self._create_config(InferenceConfig, inference_kwargs)
-        data_config = self._create_config(DataConfig, data_kwargs)
+        # Load YAML config and merge over checkpoint config (YAML overrides checkpoint)
+        yaml_cfg = OmegaConf.load(inference_config_path)
+        cfg = merge_checkpoint_with_cfg(checkpoint_path, yaml_cfg)
 
-        # Create Hydra-compatible config structure
-        cfg = self._create_hydra_config(
-            inference_config,
-            data_config,
-            checkpoint_path,
-            unknown_kwargs,
-            explicit_inference_keys=list(inference_kwargs.keys()),
-            explicit_data_keys=list(data_kwargs.keys()),
-        )
+        # Apply kwarg overrides on top (kwargs override both)
+        for key, value in inference_kwargs.items():
+            cfg.model.inference_config[key] = value
+        for key, value in data_kwargs.items():
+            cfg.model.data_config[key] = value
+
+        # Ensure the checkpoint path is reflected in the top-level model namespace as well
+        if hasattr(cfg.model, "checkpoint_path"):
+            cfg.model.checkpoint_path = checkpoint_path
 
         # Disallow multi-GPU inference in the Python client for now
         num_gpus = getattr(cfg.model.inference_config, "num_gpus", 1)
@@ -217,113 +224,3 @@ class TranscriptFormerClient:
                 unknown_kwargs[key] = value
 
         return inference_kwargs, data_kwargs, unknown_kwargs
-
-    def _create_config(self, config_class, kwargs):
-        """Create a dataclass config with defaults."""
-        # Get default values for required fields
-        defaults = self._get_defaults(config_class)
-        defaults.update(kwargs)
-
-        # Filter to only fields that exist in the dataclass
-        field_names = {f.name for f in fields(config_class)}
-        filtered_kwargs = {k: v for k, v in defaults.items() if k in field_names}
-
-        return config_class(**filtered_kwargs)
-
-    def _get_defaults(self, config_class):
-        """Get reasonable defaults for required dataclass fields."""
-        if config_class == InferenceConfig:
-            return {
-                "output_keys": ["embeddings"],
-                "batch_size": 8,
-                "obs_keys": ["all"],
-                "data_files": None,
-                "load_checkpoint": None,
-                # Default to empty list to match InferenceConfig field definition
-                "pretrained_embedding": [],
-            }
-        elif config_class == DataConfig:
-            return {
-                "aux_vocab_path": "",  # Will be set automatically
-                "pin_memory": True,
-                "aux_cols": "assay",  # Should be string, not list - gets split later
-                "gene_col_name": "ensembl_id",
-                "clip_counts": 30,
-                "filter_to_vocabs": True,
-                "filter_outliers": 0.0,
-                "pad_zeros": False,
-                "normalize_to_scale": 0,
-                "n_data_workers": 8,
-                "sort_genes": False,
-                "randomize_genes": False,
-                "min_expressed_genes": 0,
-                "gene_pad_token": "[PAD]",
-                "aux_pad_token": "[PAD]",
-            }
-        return {}
-
-    def _create_hydra_config(
-        self,
-        inference_config,
-        data_config,
-        checkpoint_path,
-        unknown_kwargs,
-        explicit_inference_keys: list[str] | None = None,
-        explicit_data_keys: list[str] | None = None,
-    ):
-        """Create Hydra-compatible configuration structure using the same merge path as the CLI.
-
-        Order: YAML defaults -> dataclass overrides -> merge with checkpoint (checkpoint base, others override).
-        """
-        # Load the CLI YAML defaults to keep parity with the CLI
-        yaml_path = os.path.normpath(
-            os.path.join(os.path.dirname(__file__), "..", "cli", "conf", "inference_config.yaml")
-        )
-        yaml_cfg = OmegaConf.load(yaml_path)
-
-        # Prepare overrides from dataclasses
-        override_inference_cfg = self._dataclass_to_dict(inference_config)
-        override_data_cfg = self._dataclass_to_dict(data_config)
-        # Do not override checkpoint values with empty optional fields
-        for k in ["esm2_mappings", "special_tokens", "esm2_mappings_path"]:
-            if k in override_data_cfg and (override_data_cfg[k] is None or override_data_cfg[k] == []):
-                del override_data_cfg[k]
-
-        overrides = {
-            "model": {
-                "model_type": inference_config.model_type,
-                "inference_config": override_inference_cfg,
-                "data_config": override_data_cfg,
-            }
-        }
-
-        # Apply any unknown kwargs under model namespace
-        for key, value in unknown_kwargs.items():
-            overrides["model"][key] = value
-
-        # Merge YAML with overrides first
-        base = OmegaConf.merge(yaml_cfg, overrides)
-
-        # Merge with checkpoint exactly like the CLI does
-        cfg = merge_checkpoint_with_cfg(checkpoint_path, base)
-
-        # If checkpoint lacks esm2_mappings, try to synthesize from known model names
-        if cfg.model.data_config.esm2_mappings is None:
-            # Best-effort to set defaults by model family
-            model_dir_name = os.path.basename(os.path.normpath(checkpoint_path))
-            if model_dir_name == "tf_sapiens":
-                cfg.model.data_config.esm2_mappings = ["homo_sapiens_gene.h5"]
-            elif model_dir_name == "tf_exemplar":
-                # exemplar trained across 5 organisms; let checkpoint provide; leave as None
-                pass
-            elif model_dir_name == "tf_metazoa":
-                # metazoa; leave as None (expect checkpoint to carry list)
-                pass
-
-        return cfg
-
-    def _dataclass_to_dict(self, obj):
-        """Convert dataclass to dictionary."""
-        if is_dataclass(obj):
-            return {f.name: getattr(obj, f.name) for f in fields(obj)}
-        return obj
