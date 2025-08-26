@@ -8,9 +8,9 @@ from typing import Any
 import anndata
 from omegaconf import OmegaConf
 
-from transcriptformer.config.build_config import merge_checkpoint_with_cfg
 from transcriptformer.data.dataclasses import DataConfig, InferenceConfig
 from transcriptformer.model.inference import run_inference
+from transcriptformer.utils.utils import merge_checkpoint_with_cfg
 
 
 class TranscriptFormerClient:

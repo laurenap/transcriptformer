@@ -16,8 +16,8 @@ import os
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-from transcriptformer.config.build_config import merge_checkpoint_with_cfg
 from transcriptformer.model.inference import run_inference
+from transcriptformer.utils.utils import merge_checkpoint_with_cfg
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

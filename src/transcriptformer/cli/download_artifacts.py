@@ -42,51 +42,14 @@ The downloaded models will be extracted to:
 """
 
 import argparse
-import math
 import sys
 import tarfile
 import tempfile
-import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-
-def print_progress(current, total, prefix="", suffix="", length=50):
-    """Print a simple progress bar with ASCII characters for better performance."""
-    filled = int(length * current / total)
-    bar = "#" * filled + "-" * (length - filled)
-    percent = math.floor(100 * current / total)
-    print(f"\r{prefix} |{bar}| {percent}% {suffix}", end="", flush=True)
-    if current == total:
-        print()
-
-
-class ProgressTracker:
-    """Rate-limited progress tracker to avoid excessive updates."""
-
-    def __init__(self, prefix="", min_update_interval=0.1):
-        self.prefix = prefix
-        self.min_update_interval = min_update_interval
-        self.last_update_time = 0
-        self.last_percent = -1
-
-    def update(self, current, total):
-        """Update progress, but only if enough time has passed or significant progress made."""
-        now = time.time()
-        current_percent = int(100 * current / total) if total > 0 else 0
-
-        # Update if: enough time passed OR significant progress made OR completed
-        should_update = (
-            now - self.last_update_time >= self.min_update_interval
-            or current_percent - self.last_percent >= 2  # Update every 2%
-            or current >= total  # Always update when complete
-        )
-
-        if should_update:
-            print_progress(current, total, prefix=self.prefix)
-            self.last_update_time = now
-            self.last_percent = current_percent
+from transcriptformer.utils.utils import ProgressTracker, print_progress
 
 
 def download_and_extract(model_name: str, checkpoint_dir: str = "./checkpoints"):
