@@ -239,8 +239,8 @@ class TranscriptFormerClient:
                 "obs_keys": ["all"],
                 "data_files": None,
                 "load_checkpoint": None,
-                # Default to None so embedding surgery is disabled unless explicitly requested
-                "pretrained_embedding": None,
+                # Default to empty list to match InferenceConfig field definition
+                "pretrained_embedding": [],
             }
         elif config_class == DataConfig:
             return {
