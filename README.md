@@ -7,8 +7,7 @@
 </em>
 </p>
 
-**Authors:** James D Pearce, Sara E Simmonds*, Gita Mahmoudabadi*, Lakshmi Krishnan*, Giovanni
-Palla, Ana-Maria Istrate, Alexander Tarashansky, Benjamin Nelson, Omar Valenzuela,
+**Authors:** James D Pearce, Sara E Simmonds*, Gita Mahmoudabadi*, Lakshmi Krishnan*, Giovanni Palla, Ana-Maria Istrate, Alexander Tarashansky, Benjamin Nelson, Omar Valenzuela,
 Donghui Li, Stephen R Quake, Theofanis Karaletsos (Chan Zuckerberg Initiative)
 
 *Equal contribution
@@ -30,7 +29,7 @@ gans. Total trainable parameters: 542 million; non-trainable: 282 million. Vocab
 
 TranscriptFormer is designed to learn rich, context-aware representations of single-cell transcriptomes while jointly modeling genes and transcripts using a novel generative architecture. It employs a generative autoregressive joint model over genes and their expression levels per cell across species, with a transformer-based architecture, including a novel coupling between gene and transcript heads, expression-aware multi-head self-attention, causal masking, and a count likelihood to capture transcript-level variability. TranscriptFormer demonstrates robust zero-shot performance for cell type classification across species, disease state identification in human cells, and prediction of cell type specific transcription factors and gene-gene regulatory relationships. This work establishes a powerful framework for integrating and interrogating cellular diversity across species as well as offering a foundation for in-silico experimentation with a generative single-cell atlas model.
 
-For more details, please refer to our manuscript: [A Cross-Species Generative Cell Atlas Across 1.5 Billion Years of Evolution: The TranscriptFormer Single-cell Model](https://www.biorxiv.org/content/10.1101/2025.04.25.650731v1)
+For more details, please refer to our manuscript: [A Cross-Species Generative Cell Atlas Across 1.5 Billion Years of Evolution: The TranscriptFormer Single-cell Model](https://www.biorxiv.org/content/10.1101/2025.04.25.650731v2)
 
 
 ## Installation
@@ -118,7 +117,7 @@ The command will download and extract the following files to the `./checkpoints`
 
 #### Available Protein Embeddings
 
-The following protein embeddings are available for download with `transcriptformer download all-embeddings`:
+Out of the box, there are 24 species with protein embeddings available for download with the command: `transcriptformer download all-embeddings`. Models come with their respective training species embeddings.
 
 | Scientific Name | Common Name | TF-Metazoa | TF-Exemplar | TF-Sapiens | Notes |
 |-----------------|-------------|------------|-------------|------------|-------|
@@ -247,8 +246,9 @@ transcriptformer inference \
   --batch-size 32
 ```
 
-You can also use the CLI it run inference on the ESM2-CE baseline model discussed in the paper:
+You can also use the CLI to run inference on the ESM2-CE baseline model discussed in the paper:
 
+```bash
 transcriptformer inference \
   --checkpoint-path ./checkpoints/tf_sapiens \
   --data-file test/data/human_val.h5ad \
@@ -295,7 +295,10 @@ transcriptformer download-data --help
 - `--num-gpus INT`: Number of GPUs to use for inference (default: 1). Use -1 for all available GPUs, or specify a specific number.
 - `--oom-dataloader`: Use the OOM-safe map-style DataLoader (uses backed reads and per-item densification; DistributedSampler-friendly).
 - `--n-data-workers INT`: Number of DataLoader workers per process (default: 0). Order is preserved with the map-style dataset and DistributedSampler.
+- `--device`: Specific device to use (`auto`, `cpu`, `cuda`, `mps`). `auto` (default) defualts to `cuda` falling back on `cpu`.
+- `--disable-compile-block-mask`: Disable block mask compilation (useful for CPU/debugging)
 - `--config-override key.path=value`: Override any configuration value directly.
+
 
 ### Input Data Format and Preprocessing:
 
@@ -306,7 +309,7 @@ Input data files should be in H5AD format (AnnData objects) with the following r
   - Only genes present in the model's vocabulary will be used for inference
   - The column name can be changed using `model.data_config.gene_col_name`
 
-- **Expression Data**: The model expects unnormalized count data and will look for it in the following order:
+- **Expression Data**: The model expects unnormalized count data (raw counts) and will look for it in the following order:
   1. `adata.raw.X` (if available)
   2. `adata.X`
 
@@ -404,4 +407,4 @@ Please note: If you believe you have found a security issue, please responsibly 
 ## Citation
 
 If you use TranscriptFormer in your research, please cite:
-Pearce, J. D., et. al. (2025). A Cross-Species Generative Cell Atlas Across 1.5 Billion Years of Evolution: The TranscriptFormer Single-cell Model. bioRxiv. Retrieved April 29, 2025, from https://www.biorxiv.org/content/10.1101/2025.04.25.650731v1
+Pearce, J. D., et. al. (2025). A Cross-Species Generative Cell Atlas Across 1.5 Billion Years of Evolution: The TranscriptFormer Single-cell Model. bioRxiv. Retrieved April 29, 2025, from https://www.biorxiv.org/content/10.1101/2025.04.25.650731v2

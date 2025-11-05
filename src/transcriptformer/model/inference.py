@@ -208,7 +208,9 @@ def run_inference(cfg, data_files: list[str] | list[anndata.AnnData]):
         if num_gpus == -1:
             # Use all available GPUs
             devices = torch.cuda.device_count() if torch.cuda.is_available() else 1
-            accelerator = "gpu" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
+            accelerator = (
+                "gpu" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
+            )
         elif num_gpus > 1:
             # Use specified number of GPUs
             available_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
