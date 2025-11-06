@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/czi-ai/transcriptformer/compare/v0.6.0...v0.6.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* Updated README and formatting ([#58](https://github.com/czi-ai/transcriptformer/issues/58)) ([2c1ce05](https://github.com/czi-ai/transcriptformer/commit/2c1ce0550ad58009eac70719c249fa3ff224acd8))
+
 ## [0.6.0](https://github.com/czi-ai/transcriptformer/compare/v0.5.0...v0.6.0) (2025-08-20)
 
 
