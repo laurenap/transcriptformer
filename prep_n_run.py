@@ -10,7 +10,7 @@ else:
     input_path = "heart.h5ad"
 
 print(f"-loading raw data set from {input_path}...-")
-adata = sc.read.h5tad(input_path)
+adata = sc.read_h5ad(input_path)
 
     # Update this path if the file is located elsewhere
 
