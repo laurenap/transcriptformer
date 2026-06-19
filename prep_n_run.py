@@ -47,7 +47,7 @@ cli_command = (
     "python3 transcriptformer/src/transcriptformer/model/inference.py "
     "--config-name=inference_config.yaml "
     "model.checkpoint_path=./checkpoints/tf_exemplar "
-    f"model.inference_config.data_files.0={subset_output} "
+    "model.inference_config.data_files.0=heart_subset.h5ad "
     "model.inference_config.batch_size=4 "
     "model.inference_config.output_path=./inference_results"
 )
