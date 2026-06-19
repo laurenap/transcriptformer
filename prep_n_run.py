@@ -5,7 +5,7 @@ import numpy as np
 
 # 1 PREP FLY CELL ATLAS DATA
 
-input_path = "fly cell_atlas_raw.h5ad" 
+input_path = "heart.h5ad"
 
 print(f"-loading raw data set from{input_path}-")
 adata = sc.read_h5ad(input_path)
@@ -26,7 +26,7 @@ else:
     adata_subset.var['ensembl_id'] = adata_subset.var_names
 
 # save the subsetted data to a new file
-subset_output = "fly_cell_atlas_1ksubset.h5ad"
+subset_output = "heart_subset.h5ad"
 adata_subset.write_h5ad(subset_output)
 print(f"Success! Saved 1,000-cell input slice to: {subset_output}\n")
 
