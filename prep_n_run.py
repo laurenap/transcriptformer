@@ -7,7 +7,12 @@ if os.path.exists("heart.h5ad"):
 elif os.path.exists("transcriptformer/heart.h5ad"):
     input_path = "transcriptformer/heart.h5ad"
 else:
-    input_path = "heart.h5ad  # Update this path if the file is located elsewhere
+    input_path = "heart.h5ad"
+
+print(f"-loading raw data set from {input_path}...-")
+adata = sc.read.h5tad(input_path)
+
+    # Update this path if the file is located elsewhere
 
 # 1 PREP FLY CELL ATLAS DATA
 
