@@ -2,6 +2,12 @@ import os
 import scanpy as sc
 import numpy as np
 
+if os.path.exists("heart.h5ad"):
+    input_path = "heart.h5ad"
+elif os.path.exists("transcriptformer/heart.h5ad"):
+    input_path = "transcriptformer/heart.h5ad"
+else:
+    input_path = "heart.h5ad  # Update this path if the file is located elsewhere
 
 # 1 PREP FLY CELL ATLAS DATA
 
