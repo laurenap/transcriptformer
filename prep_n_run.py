@@ -5,7 +5,7 @@ import numpy as np
 
 # 1 PREP FLY CELL ATLAS DATA
 
-input_path = "fly_cell_atlas_raw.h5ad" 
+input_path = "fly cell_atlas_raw.h5ad" 
 
 print(f"-loading raw data set from{input_path}-")
 adata = sc.read_h5ad(input_path)
