@@ -16,9 +16,9 @@ adata = sc.read_h5ad(input_path)
 
 # 1 PREP FLY CELL ATLAS DATA
 
-input_path = "heart.h5ad"
+input_path = "transcriptformer/heart.h5ad"
 
-print(f"-loading raw data set from{input_path}-")
+print(f"-- step1: loading raw data set from {input_path}--")
 adata = sc.read_h5ad(input_path)
 
 # take random 10000 cell slice to avoid memory issues 
