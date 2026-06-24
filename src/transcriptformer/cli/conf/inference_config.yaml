@@ -40,3 +40,4 @@ model:
     use_raw: "auto" # Whether to use .raw.X (True), .X (False), or auto-detect (auto/null)
     remove_duplicate_genes: false # Whether to remove duplicate genes instead of raising an error
     n_data_workers: 0 # Leave as 0 to ensure deterministic behavior
+compile_block_mask: False
