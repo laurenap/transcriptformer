@@ -1,30 +1,46 @@
 
 import anndata
 import mygene
+import pandas as pd
 
 print("Loading the heart subset data...")
-adata = anndata.read_h5ad("data/heart_subset.h5ad")
-
+adata = anndata.read_h5ad("heart_subset.h5ad")
 gene_symbols = adata.var_names.tolist()
+
+mg = mygene.MyGeneInfo()
+
 
 print(f"Querying gene symbols for {len(gene_symbols)} Drosophila genes for Ensemble IDs...")
 mg = mygene.MyGeneInfo()
 
+results =mg.querymany(
+    gene_symbols,
+    scopes = "symbol",
+    fields = "flybase, ensembl.gene",
+    species = "7227", 
+    as_dataframe=True
+
+)
+
+print(results.head())
+print(results.columns)
+
 results = mg.querymany(gene_symbols, scopes='symbol', fields='ensembl.gene', species='dmelanogaster')
 
 mapping = {} 
-if 'ensembl.gene' in results.columns:
-    for symbol, row in results.iterrows():
-        ensembl_id = row['ensembl.gene']
-        if isinstance(ensembl_id, str) and ensembl_id.startswith('FBgn'):
-            mapping[symbol] = ensembl_id
 
-print(f"Mapping completed. Found {len(mapping)} valid mappings.")
+for symbol, row in results.iterrows():
+    fbgn = row.get('flybase')
+    if isinstance(fbgn, str) and fbgn.startswith('FBgn'):
+        mapping[symbol] = fbgn
 
-new_ids = [mapping.get(symbol, symbol) for symbol in gene_symbols]
-adata.var['ensembl_id'] = new_ids
+print("valid mappings:", len(mapping))
 
-adata.write_h5ad("data/heart_subset_with_ensembl.h5ad")
-print("saved updated AnnData object with Ensembl IDs to 'data/heart_subset_with_ensembl.h5ad'")
+adata.var["ensembl_id"] = adata.var_names.map(mapping)
 
+print(adata.var["ensembl_id"].head(30))
+print("missing:", adata.var["ensembl_id"].isna().sum())
+
+adata = adata[:, adata.var["ensembl_id"].notna()].copy()
+adata.write_h5ad("heart_subset_fixed.h5ad")
 
