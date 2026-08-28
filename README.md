@@ -408,3 +408,4 @@ Please note: If you believe you have found a security issue, please responsibly 
 
 If you use TranscriptFormer in your research, please cite:
 Pearce, J. D., et. al. (2025). A Cross-Species Generative Cell Atlas Across 1.5 Billion Years of Evolution: The TranscriptFormer Single-cell Model. bioRxiv. Retrieved April 29, 2025, from https://www.biorxiv.org/content/10.1101/2025.04.25.650731v2
+# Update
